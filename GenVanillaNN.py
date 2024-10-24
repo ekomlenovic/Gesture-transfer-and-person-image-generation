@@ -206,13 +206,14 @@ if __name__ == '__main__':
     print("GenVanillaNN: Filename=", filename)
 
     targetVideoSke = VideoSkeleton(filename)
+    
 
     if train:
         # Train
-        gen = GenVanillaNN(targetVideoSke, loadFromFile=False)
+        gen = GenVanillaNN(targetVideoSke, loadFromFile=False, optSkeOrImage=optSkeOrImage)
         gen.train(n_epoch)
     else:
-        gen = GenVanillaNN(targetVideoSke, loadFromFile=True)    # load from file        
+        gen = GenVanillaNN(targetVideoSke, loadFromFile=True, optSkeOrImage=optSkeOrImage)    # load from file        
 
 
     # Test with a second video

@@ -27,11 +27,29 @@ class Discriminator(nn.Module):
     def __init__(self, ngpu=0):
         super(Discriminator, self).__init__()
         self.ngpu = ngpu
+        self.model = nn.Sequential(
+            # input is (nc) x 64 x 64
+            nn.Conv2d(3, 64, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf) x 32 x 32
+            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*2) x 16 x 16
+            nn.Conv2d(128, 256, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(256),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*4) x 8 x 8
+            nn.Conv2d(256, 512, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(512),
+            nn.LeakyReLU(0.2, inplace=True),
+            # state size. (ndf*8) x 4 x 4
+        )
 
 
     def forward(self, input):
-        pass
-        #return self.model(input)
+        # pass
+        return self.model(input)
     
 
 
@@ -45,7 +63,7 @@ class GenGAN():
         self.netD = Discriminator()
         self.real_label = 1.
         self.fake_label = 0.
-        self.filename = 'data/Dance/DanceGenGAN.pth'
+        self.filename = 'data/DanceGenGAN.pth'
         tgt_transform = transforms.Compose(
                             [transforms.Resize((64, 64)),
                             #transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -61,20 +79,31 @@ class GenGAN():
 
 
     def train(self, n_epochs=20):
-        pass
+        criterion = nn.MSELoss()
+        optimizer = torch.optim.Adam(self.netG.parameters(), lr=0.0002, betas=(0.5, 0.999))
+        for epoch in range(n_epochs):
+            for i, data in enumerate(self.dataloader, 0):
+                ske, image = data
+                optimizer.zero_grad()
+                output = self.netG(ske)
+                loss = criterion(output, image)
+                loss.backward()
+                optimizer.step()
+                print('[%d/%d][%d/%d] Loss: %.4f' % (epoch, n_epochs, i, len(self.dataloader), loss.item()))
+            if epoch % 10 == 0:
+                torch.save(self.netG, self.filename)
 
 
 
 
     def generate(self, ske):           # TP-TODO
         """ generator of image from skeleton """
-        pass
-        # ske_t = torch.from_numpy( ske.__array__(reduced=True).flatten() )
-        # ske_t = ske_t.to(torch.float32)
-        # ske_t = ske_t.reshape(1,Skeleton.reduced_dim,1,1) # ske.reshape(1,Skeleton.full_dim,1,1)
-        # normalized_output = self.netG(ske_t)
-        # res = self.dataset.tensor2image(normalized_output[0])
-        # return res
+        ske_t = torch.from_numpy( ske.__array__(reduced=True).flatten() )
+        ske_t = ske_t.to(torch.float32)
+        ske_t = ske_t.reshape(1,Skeleton.reduced_dim,1,1) # ske.reshape(1,Skeleton.full_dim,1,1)
+        normalized_output = self.netG(ske_t)
+        res = self.dataset.tensor2image(normalized_output[0])
+        return res
 
 
 
