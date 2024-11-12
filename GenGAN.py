@@ -21,35 +21,32 @@ from VideoReader import VideoReader
 from Skeleton import Skeleton
 from GenVanillaNN import * 
 
-
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Discriminator(nn.Module):
-    def __init__(self, ngpu=0):
+    def __init__(self):
         super(Discriminator, self).__init__()
-        self.ngpu = ngpu
         self.model = nn.Sequential(
-            # input is (nc) x 64 x 64
-            nn.Conv2d(3, 64, 4, 2, 1, bias=False),
+            nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf) x 32 x 32
-            nn.Conv2d(64, 128, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(128),
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*2) x 16 x 16
-            nn.Conv2d(128, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
+            nn.Conv2d(128, 64, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*4) x 8 x 8
-            nn.Conv2d(256, 512, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(512),
+            nn.Conv2d(64, 32, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(32),
             nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*8) x 4 x 4
+            nn.Conv2d(32, 1, kernel_size=4, stride=1, padding=0),
+            nn.Sigmoid()
         )
 
+        print(self.model)
 
-    def forward(self, input):
-        # pass
-        return self.model(input)
+    def forward(self, x):
+        out = self.model(x)
+        return out.view(-1, 1).squeeze(1)
+
     
 
 
@@ -79,18 +76,51 @@ class GenGAN():
 
 
     def train(self, n_epochs=20):
-        criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(self.netG.parameters(), lr=0.0002, betas=(0.5, 0.999))
-        for epoch in range(n_epochs):
-            for i, data in enumerate(self.dataloader, 0):
-                ske, image = data
-                optimizer.zero_grad()
-                output = self.netG(ske)
-                loss = criterion(output, image)
-                loss.backward()
-                optimizer.step()
-                print('[%d/%d][%d/%d] Loss: %.4f' % (epoch, n_epochs, i, len(self.dataloader), loss.item()))
-            if epoch % 10 == 0:
+        criterion = nn.BCELoss()
+        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.001, betas=(0.5, 0.999))
+        optimizerG = torch.optim.Adam(self.netG.parameters(), lr=0.001, betas=(0.5, 0.999))
+
+        for epoch in range(n_epochs):   
+            for i, (ske, real_images) in enumerate(self.dataloader, 0):
+                # Train Discriminator
+                self.netD.zero_grad()
+                real_images = real_images.to(device)
+                # print("real_images.shape=", real_images.shape)
+                # print("ske shape=", ske.shape)
+                label = torch.full((real_images.size(0),), self.real_label, dtype=torch.float, device=device)
+                output = self.netD(real_images)
+                output = output.view(-1)  # Flatten the output to (batch_size,)
+                lossD_real = criterion(output, label)
+                lossD_real.backward()
+
+                # Train with fake data
+                noise = torch.randn(real_images.size(0), 26, 1, 1, device=device)
+                fake_images = self.netG(noise)
+                label.fill_(self.fake_label)
+                output = self.netD(fake_images.detach())
+                output = output.view(-1)
+                lossD_fake = criterion(output, label)
+                lossD_fake.backward()
+
+                optimizerD.step()
+                lossD = lossD_real + lossD_fake
+
+                # Train Generator
+                self.netG.zero_grad()
+                label.fill_(self.real_label)
+                output = self.netD(fake_images)
+                output = output.view(-1)
+                lossG = criterion(output, label)
+                lossG.backward()
+
+                optimizerG.step()
+
+                print(f"Epoch [{epoch+1}/{n_epochs}], Step [{i}/{len(self.dataloader)}], "
+                        f"D Loss: {lossD.item():.4f}, G Loss: {lossG.item():.4f}")
+                
+
+            # Save model periodically
+            if epoch % 5 == 0:
                 torch.save(self.netG, self.filename)
 
 
@@ -125,7 +155,7 @@ if __name__ == '__main__':
     if True:    # train or load
         # Train
         gen = GenGAN(targetVideoSke, False)
-        gen.train(4) #5) #200)
+        gen.train(200) #5) #200)
     else:
         gen = GenGAN(targetVideoSke, loadFromFile=True)    # load from file        
 

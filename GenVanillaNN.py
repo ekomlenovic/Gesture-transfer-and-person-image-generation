@@ -191,7 +191,7 @@ class GenVanillaNN():
                             # transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
                             ])
         self.dataset = VideoSkeletonDataset(videoSke, ske_reduced=True, target_transform=tgt_transform, source_transform=src_transform)
-        self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=16, shuffle=True)
+        self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=32, shuffle=True)
         if loadFromFile and os.path.isfile(self.filename):
             print("GenVanillaNN: Load=", self.filename)
             print("GenVanillaNN: Current Working Directory: ", os.getcwd())
@@ -217,10 +217,7 @@ class GenVanillaNN():
 
     def generate(self, ske):
         """ generator of image from skeleton """
-        if self.optSkeOrImage == 1:
-            ske_t = self.dataset.preprocessSkeleton(ske)
-        else:
-            ske_t = self.dataset.source_transform(ske)
+        ske_t = self.dataset.preprocessSkeleton(ske)
         ske_t_batch = ske_t.unsqueeze(0)
         normalized_output = self.netG(ske_t_batch)
         res = self.dataset.tensor2image(normalized_output[0])
