@@ -112,12 +112,16 @@ class GenNNSkeToImage(nn.Module):
         self.input_dim = Skeleton.reduced_dim
         self.model = nn.Sequential(
             nn.ConvTranspose2d(26, 128, kernel_size=4, stride=1, padding=0),
+            nn.BatchNorm2d(128),
             nn.ReLU(),
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(64),
             nn.ReLU(),
             nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(32),
             nn.ReLU(),
             nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(16),
             nn.ReLU(),
             nn.ConvTranspose2d(16, 3, kernel_size=4, stride=2, padding=1)
         )
@@ -129,7 +133,34 @@ class GenNNSkeToImage(nn.Module):
 
 
 
+class GenNNSkeImToImage(nn.Module):
+    """ class that Generate a new image from from THE IMAGE OF the new skeleton posture
+       Fonc generator(Skeleton)->Image
+    """
+    def __init__(self):
+        super(GenNNSkeImToImage, self).__init__()
+        self.input_dim = Skeleton.reduced_dim
+        self.model = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(128),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(256),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(64, 3, kernel_size=4, stride=2, padding=1),
+        )
+        print(self.model)
 
+    def forward(self, z):
+        img = self.model(z)
+        return img
 
 
 
@@ -138,11 +169,19 @@ class GenVanillaNN():
        Fonc generator(Skeleton)->Image
     """
     def __init__(self, videoSke, loadFromFile=False, optSkeOrImage=1):
+        self.optSkeOrImage = optSkeOrImage
         image_size = 64
-        self.netG = GenNNSkeToImage()
-        src_transform = None
-        self.filename = 'data/DanceGenVanillaFromSke.pth'
-
+        if optSkeOrImage==1:
+            self.netG = GenNNSkeToImage()
+            src_transform = None
+            self.filename = 'data/DanceGenVanillaFromSke.pth'
+        else:
+            self.netG = GenNNSkeImToImage()
+            src_transform = transforms.Compose([ SkeToImageTransform(image_size),
+                                                 transforms.ToTensor(),
+                                                 #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                                                 ])
+            self.filename = 'data/DanceGenVanillaFromSkeim.pth'
         tgt_transform = transforms.Compose([
                             transforms.Resize(image_size),
                             transforms.CenterCrop(image_size),
@@ -161,7 +200,7 @@ class GenVanillaNN():
 
     def train(self, n_epochs=20):
         criterion = nn.MSELoss()
-        optimizer = torch.optim.Adam(self.netG.parameters(), lr=0.0002, betas=(0.5, 0.999))
+        optimizer = torch.optim.Adam(self.netG.parameters(), lr=0.0002)
         for epoch in range(n_epochs):
             for i, data in enumerate(self.dataloader, 0):
                 ske, image = data
@@ -178,11 +217,13 @@ class GenVanillaNN():
 
     def generate(self, ske):
         """ generator of image from skeleton """
-        # TP-TODO
-        ske_t = self.dataset.preprocessSkeleton(ske)
-        ske_t_batch = ske_t.unsqueeze(0)        # make a batch
+        if self.optSkeOrImage == 1:
+            ske_t = self.dataset.preprocessSkeleton(ske)
+        else:
+            ske_t = self.dataset.source_transform(ske)
+        ske_t_batch = ske_t.unsqueeze(0)
         normalized_output = self.netG(ske_t_batch)
-        res = self.dataset.tensor2image(normalized_output[0])       # get image 0 from the batch
+        res = self.dataset.tensor2image(normalized_output[0])
         return res
 
 
