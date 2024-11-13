@@ -56,12 +56,23 @@ class GenGAN():
     """ class that Generate a new image from videoSke from a new skeleton posture
        Fonc generator(Skeleton)->Image
     """
-    def __init__(self, videoSke, loadFromFile=False):
-        self.netG = GenNNSkeImToImage()
+    def __init__(self, videoSke, loadFromFile=False,optSkeOrImage=1):
+        self.optSkeOrImage = optSkeOrImage
         self.netD = Discriminator()
         self.real_label = 0.9
         self.fake_label = 0.1
-        self.filename = 'data/DanceGenGAN.pth'
+        if optSkeOrImage==1:
+            self.netG = GenNNSkeToImage()
+            src_transform = None
+            self.filename = 'data/DanceGenGANFromSke.pth'
+        else:
+            self.netG = GenNNSkeImToImage()
+            src_transform = transforms.Compose([ SkeToImageTransform(64),
+                                                 transforms.ToTensor(),
+                                                 #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                                                 ])
+            self.filename = 'data/DanceGenGANFromIm.pth'
+
         tgt_transform = transforms.Compose(
                             [transforms.Resize((64, 64)),
                             #transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -69,10 +80,6 @@ class GenGAN():
                             transforms.ToTensor(),
                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ])
-        src_transform = transforms.Compose([ SkeToImageTransform(64),
-                                                 transforms.ToTensor(),
-                                                 #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-                                                 ])
         self.dataset = VideoSkeletonDataset(videoSke, ske_reduced=True, target_transform=tgt_transform, source_transform=src_transform)
         self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=32, shuffle=True)
         if loadFromFile and os.path.isfile(self.filename):
@@ -99,7 +106,10 @@ class GenGAN():
                 lossD_real.backward()
 
                 # Train with fake data
-                noise = torch.randn(ske.size(0), 3, 64, 64, device=device) 
+                if self.optSkeOrImage==2:
+                    noise = torch.randn(ske.size(0), 3, 64, 64, device=device)
+                else:
+                    noise = torch.randn(real_images.size(0), 26, 1, 1, device=device)
                 # print("noise.shape=", noise.shape)
                 fake_images = self.netG(noise)
                 label.fill_(self.fake_label)
@@ -146,6 +156,7 @@ class GenGAN():
 
 
 if __name__ == '__main__':
+    optSkeOrImage = 2           # use as input a skeleton (1) or an image with a skeleton drawed (2)
     force = False
     if len(sys.argv) > 1:
         filename = sys.argv[1]
@@ -161,8 +172,8 @@ if __name__ == '__main__':
     #if False:
     if True:    # train or load
         # Train
-        gen = GenGAN(targetVideoSke, False)
-        gen.train(20) #5) #200)
+        gen = GenGAN(targetVideoSke, False, optSkeOrImage)
+        gen.train(1) #5) #200)
     else:
         gen = GenGAN(targetVideoSke, loadFromFile=True)    # load from file        
 
@@ -174,5 +185,7 @@ if __name__ == '__main__':
         nouvelle_taille = (256, 256) 
         image = cv2.resize(image, nouvelle_taille)
         cv2.imshow('Image', image)
-        key = cv2.waitKey(-1)
+        if cv2.waitKey(5) & 0xFF == ord('q'):
+            break
+    cv2.destroyAllWindows()
 
