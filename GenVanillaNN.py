@@ -150,6 +150,11 @@ class GenNNSkeImToImage(nn.Module):
             nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
+            nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1),
+            nn.BatchNorm2d(512),
+            nn.ReLU(inplace=True),
+            nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1),
+            nn.ReLU(inplace=True),
             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),
             nn.ReLU(inplace=True),
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
@@ -230,7 +235,7 @@ class GenVanillaNN():
 if __name__ == '__main__':
     force = False
     optSkeOrImage = 2           # use as input a skeleton (1) or an image with a skeleton drawed (2)
-    n_epoch = 20  # 200
+    n_epoch = 1  # 200
     train = 1 #False
     #train = True
 
@@ -262,4 +267,7 @@ if __name__ == '__main__':
         nouvelle_taille = (256, 256) 
         image = cv2.resize(image, nouvelle_taille)
         cv2.imshow('Image', image)
-        key = cv2.waitKey(-1)
+        # key = cv2.waitKey(-1)
+        if cv2.waitKey(25) & 0xFF == ord('q'):
+            break
+    cv2.destroyAllWindows()
