@@ -170,7 +170,7 @@ class VideoSkeleton:
 if __name__ == '__main__':
     force = True
     #force = False
-    modFRame = 10           # 10=>1440 images, 25=>560 images, 100=>140 images, 500=>280 images
+    modFRame = 5           # 10=>1440 images, 25=>560 images, 100=>140 images, 500=>280 images
 
     if len(sys.argv) > 1:
         filename = sys.argv[1]

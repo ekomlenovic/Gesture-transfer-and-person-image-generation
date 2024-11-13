@@ -32,7 +32,7 @@ class Discriminator(nn.Module):
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(128, 64, kernel_size=4, stride=2, padding=1),
-            nn.Dropout2d(0.5),
+            # nn.Dropout2d(0.5),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(64, 32, kernel_size=4, stride=2, padding=1),
@@ -69,7 +69,11 @@ class GenGAN():
                             transforms.ToTensor(),
                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ])
-        self.dataset = VideoSkeletonDataset(videoSke, ske_reduced=True, target_transform=tgt_transform)
+        src_transform = transforms.Compose([ SkeToImageTransform(64),
+                                                 transforms.ToTensor(),
+                                                 #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+                                                 ])
+        self.dataset = VideoSkeletonDataset(videoSke, ske_reduced=True, target_transform=tgt_transform, source_transform=src_transform)
         self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=32, shuffle=True)
         if loadFromFile and os.path.isfile(self.filename):
             print("GenGAN: Load=", self.filename, "   Current Working Directory=", os.getcwd())
@@ -78,8 +82,8 @@ class GenGAN():
 
     def train(self, n_epochs=20):
         criterion = nn.BCELoss()
-        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.0005, betas=(0.5, 0.999))
-        optimizerG = torch.optim.Adam(self.netG.parameters(), lr=0.001, betas=(0.5, 0.999))
+        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.0004, betas=(0.5, 0.999))
+        optimizerG = torch.optim.Adam(self.netG.parameters(), lr=0.00001, betas=(0.5, 0.999))
 
         for epoch in range(n_epochs):   
             for i, (ske, real_images) in enumerate(self.dataloader, 0):
@@ -96,6 +100,7 @@ class GenGAN():
 
                 # Train with fake data
                 noise = torch.randn(ske.size(0), 3, 64, 64, device=device) 
+                # print("noise.shape=", noise.shape)
                 fake_images = self.netG(noise)
                 label.fill_(self.fake_label)
                 output = self.netD(fake_images.detach())
@@ -129,10 +134,11 @@ class GenGAN():
 
     def generate(self, ske):           # TP-TODO
         """ generator of image from skeleton """
-        ske_t = torch.from_numpy( ske.__array__(reduced=True).flatten() )
-        ske_t = ske_t.to(torch.float32)
-        ske_t = ske_t.reshape(1,Skeleton.reduced_dim,1,1) # ske.reshape(1,Skeleton.full_dim,1,1)
-        normalized_output = self.netG(ske_t)
+        ske_t = self.dataset.preprocessSkeleton(ske)
+        ske_t_batch = ske_t.unsqueeze(0)
+        ske_t_batch = ske_t_batch.to(device)
+        normalized_output = self.netG(ske_t_batch)
+        normalized_output = torch.Tensor.cpu(normalized_output)
         res = self.dataset.tensor2image(normalized_output[0])
         return res
 
@@ -156,13 +162,14 @@ if __name__ == '__main__':
     if True:    # train or load
         # Train
         gen = GenGAN(targetVideoSke, False)
-        gen.train(50) #5) #200)
+        gen.train(20) #5) #200)
     else:
         gen = GenGAN(targetVideoSke, loadFromFile=True)    # load from file        
 
 
     for i in range(targetVideoSke.skeCount()):
         image = gen.generate(targetVideoSke.ske[i])
+        # print("image.shape=", image.shape)
         #image = image*255
         nouvelle_taille = (256, 256) 
         image = cv2.resize(image, nouvelle_taille)
