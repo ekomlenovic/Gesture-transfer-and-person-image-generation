@@ -32,6 +32,7 @@ class Discriminator(nn.Module):
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(128, 64, kernel_size=4, stride=2, padding=1),
+            nn.Dropout2d(0.5),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(64, 32, kernel_size=4, stride=2, padding=1),
@@ -56,10 +57,10 @@ class GenGAN():
        Fonc generator(Skeleton)->Image
     """
     def __init__(self, videoSke, loadFromFile=False):
-        self.netG = GenNNSkeToImage()
+        self.netG = GenNNSkeImToImage()
         self.netD = Discriminator()
-        self.real_label = 1.
-        self.fake_label = 0.
+        self.real_label = 0.9
+        self.fake_label = 0.1
         self.filename = 'data/DanceGenGAN.pth'
         tgt_transform = transforms.Compose(
                             [transforms.Resize((64, 64)),
@@ -72,12 +73,12 @@ class GenGAN():
         self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=32, shuffle=True)
         if loadFromFile and os.path.isfile(self.filename):
             print("GenGAN: Load=", self.filename, "   Current Working Directory=", os.getcwd())
-            self.netG = torch.load(self.filename)
+            self.netG = torch.load(self.filename, map_location=device)  
 
 
     def train(self, n_epochs=20):
         criterion = nn.BCELoss()
-        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.001, betas=(0.5, 0.999))
+        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.0005, betas=(0.5, 0.999))
         optimizerG = torch.optim.Adam(self.netG.parameters(), lr=0.001, betas=(0.5, 0.999))
 
         for epoch in range(n_epochs):   
@@ -94,7 +95,7 @@ class GenGAN():
                 lossD_real.backward()
 
                 # Train with fake data
-                noise = torch.randn(real_images.size(0), 26, 1, 1, device=device)
+                noise = torch.randn(ske.size(0), 3, 64, 64, device=device) 
                 fake_images = self.netG(noise)
                 label.fill_(self.fake_label)
                 output = self.netD(fake_images.detach())
@@ -155,7 +156,7 @@ if __name__ == '__main__':
     if True:    # train or load
         # Train
         gen = GenGAN(targetVideoSke, False)
-        gen.train(200) #5) #200)
+        gen.train(50) #5) #200)
     else:
         gen = GenGAN(targetVideoSke, loadFromFile=True)    # load from file        
 
