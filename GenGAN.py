@@ -32,7 +32,7 @@ class Discriminator(nn.Module):
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(128, 64, kernel_size=4, stride=2, padding=1),
-            # nn.Dropout2d(0.5),
+            nn.Dropout2d(0.5),
             nn.BatchNorm2d(64),
             nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(64, 32, kernel_size=4, stride=2, padding=1),
@@ -58,15 +58,15 @@ class GenGAN():
     """
     def __init__(self, videoSke, loadFromFile=False,optSkeOrImage=1):
         self.optSkeOrImage = optSkeOrImage
-        self.netD = Discriminator()
+        self.netD = Discriminator().to(device)
         self.real_label = 0.9
         self.fake_label = 0.1
         if optSkeOrImage==1:
-            self.netG = GenNNSkeToImage()
+            self.netG = GenNNSkeToImage().to(device)
             src_transform = None
             self.filename = 'data/DanceGenGANFromSke.pth'
         else:
-            self.netG = GenNNSkeImToImage()
+            self.netG = GenNNSkeImToImage().to(device)
             src_transform = transforms.Compose([ SkeToImageTransform(64),
                                                  transforms.ToTensor(),
                                                  #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -89,11 +89,13 @@ class GenGAN():
 
     def train(self, n_epochs=20):
         criterion = nn.BCELoss()
-        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.0004, betas=(0.5, 0.999))
-        optimizerG = torch.optim.Adam(self.netG.parameters(), lr=0.00001, betas=(0.5, 0.999))
+        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.0001, betas=(0.5, 0.999))
+        optimizerG = torch.optim.Adam(self.netG.parameters(), lr=0.0005, betas=(0.5, 0.999))
 
         for epoch in range(n_epochs):   
             for i, (ske, real_images) in enumerate(self.dataloader, 0):
+                ske = ske.to(device)
+                real_images = real_images.to(device)
                 # Train Discriminator
                 self.netD.zero_grad()
                 real_images = real_images.to(device)
@@ -173,7 +175,7 @@ if __name__ == '__main__':
     if True:    # train or load
         # Train
         gen = GenGAN(targetVideoSke, False, optSkeOrImage)
-        gen.train(1) #5) #200)
+        gen.train(50) #5) #200)
     else:
         gen = GenGAN(targetVideoSke, loadFromFile=True)    # load from file        
 

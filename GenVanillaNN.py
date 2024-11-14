@@ -23,6 +23,7 @@ from Skeleton import Skeleton
 
 torch.set_default_dtype(torch.float32)
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class SkeToImageTransform:
     def __init__(self, image_size):
@@ -113,16 +114,16 @@ class GenNNSkeToImage(nn.Module):
         self.model = nn.Sequential(
             nn.ConvTranspose2d(26, 128, kernel_size=4, stride=1, padding=0),
             nn.BatchNorm2d(128),
-            nn.ReLU(),
+            nn.LeakyReLU(0.2, inplace=True),      
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(64),
-            nn.ReLU(),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.ConvTranspose2d(64, 32, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(32),
-            nn.ReLU(),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.ConvTranspose2d(32, 16, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(16),
-            nn.ReLU(),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.ConvTranspose2d(16, 3, kernel_size=4, stride=2, padding=1)
         )
         print(self.model)
@@ -143,22 +144,22 @@ class GenNNSkeImToImage(nn.Module):
         self.model = nn.Sequential(
             nn.Conv2d(3, 64, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(128, 256, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.Conv2d(256, 512, kernel_size=4, stride=2, padding=1),
             nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.ConvTranspose2d(512, 256, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.ConvTranspose2d(256, 128, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1),
-            nn.ReLU(inplace=True),
+            nn.LeakyReLU(0.2, inplace=True),
             nn.ConvTranspose2d(64, 3, kernel_size=4, stride=2, padding=1),
         )
         print(self.model)
@@ -177,11 +178,11 @@ class GenVanillaNN():
         self.optSkeOrImage = optSkeOrImage
         image_size = 64
         if optSkeOrImage==1:
-            self.netG = GenNNSkeToImage()
+            self.netG = GenNNSkeToImage().to(device)
             src_transform = None
             self.filename = 'data/DanceGenVanillaFromSke.pth'
         else:
-            self.netG = GenNNSkeImToImage()
+            self.netG = GenNNSkeImToImage().to(device)
             src_transform = transforms.Compose([ SkeToImageTransform(image_size),
                                                  transforms.ToTensor(),
                                                  #transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
@@ -200,7 +201,7 @@ class GenVanillaNN():
         if loadFromFile and os.path.isfile(self.filename):
             print("GenVanillaNN: Load=", self.filename)
             print("GenVanillaNN: Current Working Directory: ", os.getcwd())
-            self.netG = torch.load(self.filename)
+            self.netG = torch.load(self.filename, map_location=device)
 
 
     def train(self, n_epochs=20):
@@ -210,6 +211,8 @@ class GenVanillaNN():
             for i, data in enumerate(self.dataloader, 0):
                 ske, image = data
                 optimizer.zero_grad()
+                ske = ske.to(device)
+                image = image.to(device)
                 output = self.netG(ske)
                 loss = criterion(output, image)
                 loss.backward()
@@ -224,8 +227,10 @@ class GenVanillaNN():
         """ generator of image from skeleton """
         ske_t = self.dataset.preprocessSkeleton(ske)
         ske_t_batch = ske_t.unsqueeze(0)
+        ske_t_batch = ske_t_batch.to(device)
         normalized_output = self.netG(ske_t_batch)
         # print("normalized_output.shape=", normalized_output.shape)
+        normalized_output = torch.Tensor.cpu(normalized_output)
         res = self.dataset.tensor2image(normalized_output[0])
         return res
 
@@ -234,8 +239,8 @@ class GenVanillaNN():
 
 if __name__ == '__main__':
     force = False
-    optSkeOrImage = 2           # use as input a skeleton (1) or an image with a skeleton drawed (2)
-    n_epoch = 1  # 200
+    optSkeOrImage = 1           # use as input a skeleton (1) or an image with a skeleton drawed (2)
+    n_epoch = 200  # 200
     train = 1 #False
     #train = True
 
