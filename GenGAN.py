@@ -59,8 +59,8 @@ class GenGAN():
     def __init__(self, videoSke, loadFromFile=False,optSkeOrImage=1):
         self.optSkeOrImage = optSkeOrImage
         self.netD = Discriminator().to(device)
-        self.real_label = 0.9
-        self.fake_label = 0.1
+        self.real_label = 1.
+        self.fake_label = 0.
         if optSkeOrImage==1:
             self.netG = GenNNSkeToImage().to(device)
             src_transform = None
@@ -81,7 +81,7 @@ class GenGAN():
                             transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
                             ])
         self.dataset = VideoSkeletonDataset(videoSke, ske_reduced=True, target_transform=tgt_transform, source_transform=src_transform)
-        self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=32, shuffle=True)
+        self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=64, shuffle=True)
         if loadFromFile and os.path.isfile(self.filename):
             print("GenGAN: Load=", self.filename, "   Current Working Directory=", os.getcwd())
             self.netG = torch.load(self.filename, map_location=device)  
@@ -89,8 +89,8 @@ class GenGAN():
 
     def train(self, n_epochs=20):
         criterion = nn.BCELoss()
-        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.0001, betas=(0.5, 0.999))
-        optimizerG = torch.optim.Adam(self.netG.parameters(), lr=0.0005, betas=(0.5, 0.999))
+        optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.001, betas=(0.5, 0.999))
+        optimizerG = torch.optim.Adam(self.netG.parameters(), lr=0.001, betas=(0.5, 0.999))
 
         for epoch in range(n_epochs):   
             for i, (ske, real_images) in enumerate(self.dataloader, 0):
@@ -113,7 +113,7 @@ class GenGAN():
                 else:
                     noise = torch.randn(real_images.size(0), 26, 1, 1, device=device)
                 # print("noise.shape=", noise.shape)
-                fake_images = self.netG(noise)
+                fake_images = self.netG(ske)
                 label.fill_(self.fake_label)
                 output = self.netD(fake_images.detach())
                 output = output.view(-1)

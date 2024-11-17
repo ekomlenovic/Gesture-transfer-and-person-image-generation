@@ -66,8 +66,9 @@ Pour `GenNNSkeImToImage`, j'ai bien transformé ma source au préalable.
 
 ### 3. GenGAN.py
 
-J'ai implémenter le modèle GAN, avec les deux versions (skeleton et image). J'ai remarqué que le Discriminateur était très performant, mais le générateur ne l'était pas. J'ai essayé de modifier les hyperparamètres et de rendre le discriminateur moins performant. Pour cela, j'ai mis un dropout, modifié le lr, et changer les labels de 0 et 1 pour 0.1 et 0.9.
+J'ai implémenter le modèle GAN, avec les deux versions (skeleton et image). J'ai remarqué que le Discriminateur était très performant, mais le générateur ne l'était pas. J'ai essayé de modifier les hyperparamètres et de rendre le discriminateur moins performant.
 
+A la différence du GAN ou je passe du bruit en entrée, ici nous passons un squelette en entrée. Cela donne des résultats plus précis.
 
 # Auteurs
 

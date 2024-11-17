@@ -219,6 +219,7 @@ class GenVanillaNN():
                 optimizer.step()
                 print('[%d/%d][%d/%d] Loss: %.4f' % (epoch, n_epochs, i, len(self.dataloader), loss.item()))
             if epoch % 10 == 0:
+                print("GenVanillaNN: Save=", self.filename)
                 torch.save(self.netG, self.filename)
         
 

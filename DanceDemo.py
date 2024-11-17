@@ -70,7 +70,8 @@ if __name__ == '__main__':
     # NEAREST = 1
     # VANILLA_NN_SKE = 2
     # VANILLA_NN_Image = 3
-    # GAN = 4
+    # GAN_SKE  = 4
+    # GAN_Image = 5
     GEN_TYPE = 5
     ddemo = DanceDemo("data/taichi2_full.mp4", GEN_TYPE)
     #ddemo = DanceDemo("data/taichi1.mp4")
