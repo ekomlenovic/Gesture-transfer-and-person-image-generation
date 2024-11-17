@@ -103,7 +103,7 @@ class GenGAN():
                 # print("ske shape=", ske.shape)
                 label = torch.full((real_images.size(0),), self.real_label, dtype=torch.float, device=device)
                 output = self.netD(real_images)
-                output = output.view(-1)  # Flatten the output to (batch_size,)
+                output = output.view(-1)
                 lossD_real = criterion(output, label)
                 lossD_real.backward()
 
