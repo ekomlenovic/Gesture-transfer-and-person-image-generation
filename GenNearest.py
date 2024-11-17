@@ -27,8 +27,9 @@ class GenNeirest:
         image = empty
         for i in range(self.videoSkeletonTarget.skeCount()):
             skeTgt = self.videoSkeletonTarget.ske[i]
-            if skeTgt.distance(ske) < distance:
-                distance = skeTgt.distance(ske)
+            dd = skeTgt.distance(ske)
+            if dd < distance:
+                distance = dd
                 image = self.videoSkeletonTarget.readImage(i)
         return image
 
