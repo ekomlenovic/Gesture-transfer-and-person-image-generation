@@ -72,4 +72,4 @@ J'ai implémenter le modèle GAN, avec les deux versions (skeleton et image). J'
 # Auteurs
 
 - Emilien KOMLENOVIC p2000315
-- [Alexandre Meyer](http://alexandre.meyer.pages.univ-lyon1.fr/) base du code 
+- [Alexandre Meyer](https://perso.liris.cnrs.fr/ameyer/public_html/www/) base du code 
